@@ -130,8 +130,8 @@ The app uses Socket.io for real-time synchronization:
 
 - [x] **Phase 1**: Foundation - Basic CRUD, REST API
 - [x] **Phase 2**: Real-time - Socket.io integration, presence, typing indicators
-- [ ] **Phase 3**: Authentication - User auth & permissions
-- [ ] **Phase 4**: Collaboration - Conflict resolution, assignments
+- [x] **Phase 3**: Rooms & Collaboration - Shareable lists, user colors, selection highlights
+- [ ] **Phase 4**: Authentication - User auth & permissions
 - [ ] **Phase 5**: Polish - UI/UX improvements, deployment
 
 ## License

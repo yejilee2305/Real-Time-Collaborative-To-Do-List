@@ -10,35 +10,52 @@ export function OnlineUsers() {
     return null;
   }
 
+  // Sort to put current user first
+  const sortedUsers = [...onlineUsers].sort((a, b) => {
+    if (a.userId === currentUserId) return -1;
+    if (b.userId === currentUserId) return 1;
+    return 0;
+  });
+
   return (
     <div className="flex items-center gap-2">
       <div className="flex -space-x-2">
-        {/* Show avatars for users (up to 3) */}
-        {onlineUsers.slice(0, 3).map((userId, index) => (
-          <div
-            key={userId}
-            className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs font-medium text-white ${
-              userId === currentUserId ? 'bg-blue-500' : 'bg-gray-400'
-            }`}
-            style={{ zIndex: 3 - index }}
-            title={userId === currentUserId ? 'You' : userId}
-          >
-            {userId === currentUserId ? 'You' : userId.slice(5, 7).toUpperCase()}
-          </div>
-        ))}
-        {totalOnline > 3 && (
+        {/* Show avatars for users (up to 4) */}
+        {sortedUsers.slice(0, 4).map((user, index) => {
+          const isCurrentUser = user.userId === currentUserId;
+          const initials = isCurrentUser
+            ? 'You'
+            : user.name.slice(0, 2).toUpperCase();
+
+          return (
+            <div
+              key={user.userId}
+              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs font-medium text-white shadow-sm transition-transform hover:scale-110 hover:z-10"
+              style={{
+                backgroundColor: user.color,
+                zIndex: 4 - index,
+              }}
+              title={isCurrentUser ? 'You' : user.name}
+            >
+              {initials}
+            </div>
+          );
+        })}
+        {totalOnline > 4 && (
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-200 text-xs font-medium text-gray-600"
             style={{ zIndex: 0 }}
+            title={sortedUsers
+              .slice(4)
+              .map((u) => u.name)
+              .join(', ')}
           >
-            +{totalOnline - 3}
+            +{totalOnline - 4}
           </div>
         )}
       </div>
       <span className="text-sm text-gray-600">
-        {totalOnline === 1
-          ? 'Just you'
-          : `${totalOnline} online`}
+        {totalOnline === 1 ? 'Just you' : `${totalOnline} online`}
       </span>
     </div>
   );

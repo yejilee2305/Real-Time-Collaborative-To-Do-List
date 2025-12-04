@@ -5,7 +5,7 @@ export function TypingIndicator() {
   const currentUserId = useTodoStore((state) => state.currentUserId);
 
   // Filter out current user
-  const otherTypingUsers = typingUsers.filter((u) => u !== currentUserId);
+  const otherTypingUsers = typingUsers.filter((u) => u.userId !== currentUserId);
 
   if (otherTypingUsers.length === 0) {
     return null;
@@ -13,9 +13,27 @@ export function TypingIndicator() {
 
   const formatTypingText = () => {
     if (otherTypingUsers.length === 1) {
-      return `${otherTypingUsers[0].slice(5, 12)} is typing...`;
+      return (
+        <>
+          <span style={{ color: otherTypingUsers[0].color, fontWeight: 500 }}>
+            {otherTypingUsers[0].name}
+          </span>{' '}
+          is typing...
+        </>
+      );
     } else if (otherTypingUsers.length === 2) {
-      return `${otherTypingUsers[0].slice(5, 12)} and ${otherTypingUsers[1].slice(5, 12)} are typing...`;
+      return (
+        <>
+          <span style={{ color: otherTypingUsers[0].color, fontWeight: 500 }}>
+            {otherTypingUsers[0].name}
+          </span>{' '}
+          and{' '}
+          <span style={{ color: otherTypingUsers[1].color, fontWeight: 500 }}>
+            {otherTypingUsers[1].name}
+          </span>{' '}
+          are typing...
+        </>
+      );
     } else {
       return `${otherTypingUsers.length} people are typing...`;
     }
@@ -24,13 +42,22 @@ export function TypingIndicator() {
   return (
     <div className="mb-4 flex items-center gap-2 text-sm text-gray-500">
       <div className="flex gap-1">
-        <span className="animate-bounce" style={{ animationDelay: '0ms' }}>
+        <span
+          className="animate-bounce"
+          style={{ animationDelay: '0ms', color: otherTypingUsers[0]?.color }}
+        >
           .
         </span>
-        <span className="animate-bounce" style={{ animationDelay: '150ms' }}>
+        <span
+          className="animate-bounce"
+          style={{ animationDelay: '150ms', color: otherTypingUsers[0]?.color }}
+        >
           .
         </span>
-        <span className="animate-bounce" style={{ animationDelay: '300ms' }}>
+        <span
+          className="animate-bounce"
+          style={{ animationDelay: '300ms', color: otherTypingUsers[0]?.color }}
+        >
           .
         </span>
       </div>

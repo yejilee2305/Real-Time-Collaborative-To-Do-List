@@ -1,37 +1,71 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { TodoItem, CreateTodoDto, UpdateTodoDto } from '@sync/shared';
+import { TodoItem, CreateTodoDto, UpdateTodoDto, OnlineUser } from '@sync/shared';
 import * as todosService from '../services/todos';
 
-// Track users in each list room
-const listUsers = new Map<string, Set<string>>();
+// Predefined colors for users
+const USER_COLORS = [
+  '#3B82F6', // blue
+  '#10B981', // green
+  '#F59E0B', // amber
+  '#EF4444', // red
+  '#8B5CF6', // purple
+  '#EC4899', // pink
+  '#06B6D4', // cyan
+  '#F97316', // orange
+];
+
+// Track users in each list room with full presence info
+const listUsers = new Map<string, Map<string, OnlineUser>>();
 // Track which user is typing in which list
 const typingUsers = new Map<string, Map<string, NodeJS.Timeout>>();
+// Track color assignments per list
+const colorAssignments = new Map<string, Map<string, string>>();
+
+function getColorForUser(listId: string, userId: string): string {
+  if (!colorAssignments.has(listId)) {
+    colorAssignments.set(listId, new Map());
+  }
+  const listColors = colorAssignments.get(listId)!;
+
+  if (listColors.has(userId)) {
+    return listColors.get(userId)!;
+  }
+
+  // Assign next available color
+  const usedColors = new Set(listColors.values());
+  const availableColor = USER_COLORS.find((c) => !usedColors.has(c)) || USER_COLORS[listColors.size % USER_COLORS.length];
+  listColors.set(userId, availableColor);
+  return availableColor;
+}
 
 export interface ServerToClientEvents {
   'todo:created': (todo: TodoItem) => void;
   'todo:updated': (todo: TodoItem) => void;
   'todo:deleted': (data: { id: string; listId: string }) => void;
   'todo:reordered': (todo: TodoItem) => void;
-  'user:joined': (data: { userId: string; listId: string; userCount: number }) => void;
-  'user:left': (data: { userId: string; listId: string; userCount: number }) => void;
-  'presence:update': (data: { listId: string; users: string[] }) => void;
+  'user:joined': (data: { user: OnlineUser; listId: string }) => void;
+  'user:left': (data: { userId: string; listId: string }) => void;
+  'presence:update': (data: { listId: string; users: OnlineUser[] }) => void;
   'user:typing': (data: { userId: string; listId: string; isTyping: boolean }) => void;
+  'user:selecting': (data: { userId: string; listId: string; todoId: string | null }) => void;
   'error': (data: { message: string }) => void;
 }
 
 export interface ClientToServerEvents {
-  'join-list': (data: { listId: string; userId: string }) => void;
+  'join-list': (data: { listId: string; userId: string; userName: string }) => void;
   'leave-list': (data: { listId: string; userId: string }) => void;
   'todo:create': (data: CreateTodoDto & { createdBy: string }) => void;
   'todo:update': (data: { id: string; updates: UpdateTodoDto }) => void;
   'todo:delete': (data: { id: string; listId: string }) => void;
   'todo:reorder': (data: { id: string; newPosition: number; listId: string }) => void;
   'user:typing': (data: { listId: string; userId: string; isTyping: boolean }) => void;
+  'user:selecting': (data: { listId: string; userId: string; todoId: string | null }) => void;
 }
 
 interface SocketData {
   userId: string;
+  userName: string;
   currentListId: string | null;
 }
 
@@ -54,7 +88,7 @@ export function setupSocketServer(httpServer: HttpServer): Server {
     socket.data.currentListId = null;
 
     // Handle joining a list room
-    socket.on('join-list', ({ listId, userId }) => {
+    socket.on('join-list', ({ listId, userId, userName }) => {
       // Leave previous list if any
       if (socket.data.currentListId) {
         leaveList(socket, socket.data.currentListId, socket.data.userId);
@@ -63,22 +97,32 @@ export function setupSocketServer(httpServer: HttpServer): Server {
       // Join new list
       socket.join(listId);
       socket.data.userId = userId;
+      socket.data.userName = userName;
       socket.data.currentListId = listId;
+
+      // Create user presence info
+      const color = getColorForUser(listId, userId);
+      const userPresence: OnlineUser = {
+        userId,
+        color,
+        name: userName,
+        isTyping: false,
+        joinedAt: new Date(),
+      };
 
       // Track user in list
       if (!listUsers.has(listId)) {
-        listUsers.set(listId, new Set());
+        listUsers.set(listId, new Map());
       }
-      listUsers.get(listId)!.add(userId);
+      listUsers.get(listId)!.set(userId, userPresence);
 
-      const users = Array.from(listUsers.get(listId) || []);
-      console.log(`👤 User ${userId} joined list ${listId}. Users: ${users.length}`);
+      const users = Array.from(listUsers.get(listId)?.values() || []);
+      console.log(`👤 User ${userName} (${userId}) joined list ${listId}. Users: ${users.length}`);
 
       // Broadcast to others in the list
       socket.to(listId).emit('user:joined', {
-        userId,
+        user: userPresence,
         listId,
-        userCount: users.length,
       });
 
       // Send presence update to all in list (including joiner)
@@ -166,6 +210,11 @@ export function setupSocketServer(httpServer: HttpServer): Server {
       }
       const listTyping = typingUsers.get(listId)!;
 
+      // Update user presence
+      if (listUsers.has(listId) && listUsers.get(listId)!.has(userId)) {
+        listUsers.get(listId)!.get(userId)!.isTyping = isTyping;
+      }
+
       // Clear existing timeout for this user
       if (listTyping.has(userId)) {
         clearTimeout(listTyping.get(userId));
@@ -176,6 +225,9 @@ export function setupSocketServer(httpServer: HttpServer): Server {
         // Set timeout to auto-clear typing status after 3 seconds
         const timeout = setTimeout(() => {
           listTyping.delete(userId);
+          if (listUsers.has(listId) && listUsers.get(listId)!.has(userId)) {
+            listUsers.get(listId)!.get(userId)!.isTyping = false;
+          }
           socket.to(listId).emit('user:typing', { userId, listId, isTyping: false });
         }, 3000);
         listTyping.set(userId, timeout);
@@ -183,6 +235,17 @@ export function setupSocketServer(httpServer: HttpServer): Server {
 
       // Broadcast typing status to others in the list
       socket.to(listId).emit('user:typing', { userId, listId, isTyping });
+    });
+
+    // Handle todo selection (for highlighting)
+    socket.on('user:selecting', ({ listId, userId, todoId }) => {
+      // Update user presence
+      if (listUsers.has(listId) && listUsers.get(listId)!.has(userId)) {
+        listUsers.get(listId)!.get(userId)!.selectedTodoId = todoId || undefined;
+      }
+
+      // Broadcast selection to others
+      socket.to(listId).emit('user:selecting', { userId, listId, todoId });
     });
 
     // Handle disconnection
@@ -206,6 +269,7 @@ export function setupSocketServer(httpServer: HttpServer): Server {
       listUsers.get(listId)!.delete(userId);
       if (listUsers.get(listId)!.size === 0) {
         listUsers.delete(listId);
+        colorAssignments.delete(listId);
       }
     }
 
@@ -215,14 +279,13 @@ export function setupSocketServer(httpServer: HttpServer): Server {
       typingUsers.get(listId)!.delete(userId);
     }
 
-    const users = Array.from(listUsers.get(listId) || []);
+    const users = Array.from(listUsers.get(listId)?.values() || []);
     console.log(`👤 User ${userId} left list ${listId}. Users: ${users.length}`);
 
     // Broadcast to others in the list
     socket.to(listId).emit('user:left', {
       userId,
       listId,
-      userCount: users.length,
     });
 
     // Send presence update

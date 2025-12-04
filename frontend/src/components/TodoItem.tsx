@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TodoItem as TodoItemType } from '@sync/shared';
 import { useTodoStore } from '../stores/todoStore';
 
@@ -13,9 +13,27 @@ const priorityColors = {
 };
 
 export function TodoItem({ todo }: TodoItemProps) {
-  const { toggleTodo, updateTodo, deleteTodo } = useTodoStore();
+  const { toggleTodo, updateTodo, deleteTodo, sendSelecting, getSelectingUsers } =
+    useTodoStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(todo.title);
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Get users who are selecting this todo
+  const selectingUsers = getSelectingUsers(todo.id);
+  const hasOtherSelections = selectingUsers.length > 0;
+
+  // Send selection status when focused/unfocused
+  useEffect(() => {
+    if (isFocused || isEditing) {
+      sendSelecting(todo.id);
+    }
+    return () => {
+      if (isFocused || isEditing) {
+        sendSelecting(null);
+      }
+    };
+  }, [isFocused, isEditing, todo.id, sendSelecting]);
 
   const handleToggle = () => {
     toggleTodo(todo.id);
@@ -41,8 +59,45 @@ export function TodoItem({ todo }: TodoItemProps) {
     deleteTodo(todo.id);
   };
 
+  // Get the border color for selection indicator
+  const selectionBorderColor = hasOtherSelections ? selectingUsers[0].color : undefined;
+
   return (
-    <li className="group flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-sm">
+    <li
+      className={`group relative flex items-center gap-3 rounded-lg border-2 bg-white p-3 transition-all ${
+        hasOtherSelections
+          ? 'shadow-md'
+          : 'border-gray-200 hover:shadow-sm'
+      }`}
+      style={{
+        borderColor: selectionBorderColor || undefined,
+      }}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      onMouseEnter={() => setIsFocused(true)}
+      onMouseLeave={() => !isEditing && setIsFocused(false)}
+    >
+      {/* Selection indicator avatars */}
+      {hasOtherSelections && (
+        <div className="absolute -top-2 -right-2 flex -space-x-1">
+          {selectingUsers.slice(0, 3).map((user) => (
+            <div
+              key={user.userId}
+              className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-medium text-white shadow-sm"
+              style={{ backgroundColor: user.color }}
+              title={`${user.name} is viewing`}
+            >
+              {user.name.slice(0, 1).toUpperCase()}
+            </div>
+          ))}
+          {selectingUsers.length > 3 && (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-gray-400 text-[10px] font-medium text-white shadow-sm">
+              +{selectingUsers.length - 3}
+            </div>
+          )}
+        </div>
+      )}
+
       <button
         onClick={handleToggle}
         className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors ${

@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { TodoItem, CreateTodoDto, UpdateTodoDto } from '@sync/shared';
+import { TodoItem, CreateTodoDto, UpdateTodoDto, OnlineUser } from '@sync/shared';
 
 // Socket event types matching the backend
 interface ServerToClientEvents {
@@ -7,21 +7,23 @@ interface ServerToClientEvents {
   'todo:updated': (todo: TodoItem) => void;
   'todo:deleted': (data: { id: string; listId: string }) => void;
   'todo:reordered': (todo: TodoItem) => void;
-  'user:joined': (data: { userId: string; listId: string; userCount: number }) => void;
-  'user:left': (data: { userId: string; listId: string; userCount: number }) => void;
-  'presence:update': (data: { listId: string; users: string[] }) => void;
+  'user:joined': (data: { user: OnlineUser; listId: string }) => void;
+  'user:left': (data: { userId: string; listId: string }) => void;
+  'presence:update': (data: { listId: string; users: OnlineUser[] }) => void;
   'user:typing': (data: { userId: string; listId: string; isTyping: boolean }) => void;
+  'user:selecting': (data: { userId: string; listId: string; todoId: string | null }) => void;
   'error': (data: { message: string }) => void;
 }
 
 interface ClientToServerEvents {
-  'join-list': (data: { listId: string; userId: string }) => void;
+  'join-list': (data: { listId: string; userId: string; userName: string }) => void;
   'leave-list': (data: { listId: string; userId: string }) => void;
   'todo:create': (data: CreateTodoDto & { createdBy: string }) => void;
   'todo:update': (data: { id: string; updates: UpdateTodoDto }) => void;
   'todo:delete': (data: { id: string; listId: string }) => void;
   'todo:reorder': (data: { id: string; newPosition: number; listId: string }) => void;
   'user:typing': (data: { listId: string; userId: string; isTyping: boolean }) => void;
+  'user:selecting': (data: { listId: string; userId: string; todoId: string | null }) => void;
 }
 
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -32,6 +34,7 @@ class SocketService {
   private socket: TypedSocket | null = null;
   private currentListId: string | null = null;
   private currentUserId: string | null = null;
+  private currentUserName: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
@@ -40,10 +43,11 @@ class SocketService {
   public onTodoUpdated: ((todo: TodoItem) => void) | null = null;
   public onTodoDeleted: ((data: { id: string; listId: string }) => void) | null = null;
   public onTodoReordered: ((todo: TodoItem) => void) | null = null;
-  public onUserJoined: ((data: { userId: string; listId: string; userCount: number }) => void) | null = null;
-  public onUserLeft: ((data: { userId: string; listId: string; userCount: number }) => void) | null = null;
-  public onPresenceUpdate: ((data: { listId: string; users: string[] }) => void) | null = null;
+  public onUserJoined: ((data: { user: OnlineUser; listId: string }) => void) | null = null;
+  public onUserLeft: ((data: { userId: string; listId: string }) => void) | null = null;
+  public onPresenceUpdate: ((data: { listId: string; users: OnlineUser[] }) => void) | null = null;
   public onUserTyping: ((data: { userId: string; listId: string; isTyping: boolean }) => void) | null = null;
+  public onUserSelecting: ((data: { userId: string; listId: string; todoId: string | null }) => void) | null = null;
   public onError: ((data: { message: string }) => void) | null = null;
   public onConnectionChange: ((connected: boolean) => void) | null = null;
 
@@ -72,8 +76,8 @@ class SocketService {
       this.onConnectionChange?.(true);
 
       // Rejoin list if we were in one
-      if (this.currentListId && this.currentUserId) {
-        this.joinList(this.currentListId, this.currentUserId);
+      if (this.currentListId && this.currentUserId && this.currentUserName) {
+        this.joinList(this.currentListId, this.currentUserId, this.currentUserName);
       }
     });
 
@@ -124,6 +128,10 @@ class SocketService {
       this.onUserTyping?.(data);
     });
 
+    this.socket.on('user:selecting', (data) => {
+      this.onUserSelecting?.(data);
+    });
+
     this.socket.on('error', (data) => {
       console.error('Socket error:', data.message);
       this.onError?.(data);
@@ -138,10 +146,11 @@ class SocketService {
     this.socket = null;
   }
 
-  joinList(listId: string, userId: string): void {
+  joinList(listId: string, userId: string, userName?: string): void {
     this.currentListId = listId;
     this.currentUserId = userId;
-    this.socket?.emit('join-list', { listId, userId });
+    this.currentUserName = userName || userId;
+    this.socket?.emit('join-list', { listId, userId, userName: this.currentUserName });
   }
 
   leaveList(listId: string, userId: string): void {
@@ -167,6 +176,10 @@ class SocketService {
 
   sendTyping(listId: string, userId: string, isTyping: boolean): void {
     this.socket?.emit('user:typing', { listId, userId, isTyping });
+  }
+
+  sendSelecting(listId: string, userId: string, todoId: string | null): void {
+    this.socket?.emit('user:selecting', { listId, userId, todoId });
   }
 
   isConnected(): boolean {

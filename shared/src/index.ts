@@ -85,6 +85,16 @@ export interface ListMember {
   joinedAt: Date;
 }
 
+// Online user presence types
+export interface OnlineUser {
+  userId: string;
+  color: string;
+  name: string;
+  selectedTodoId?: string;
+  isTyping: boolean;
+  joinedAt: Date;
+}
+
 // API response types
 export interface ApiResponse<T> {
   success: boolean;
