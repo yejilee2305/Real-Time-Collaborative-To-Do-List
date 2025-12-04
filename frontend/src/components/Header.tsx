@@ -18,8 +18,8 @@ export function Header() {
           </svg>
           <h1 className="text-xl font-bold text-gray-900">Sync</h1>
         </div>
-        <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
-          Phase 1: Basic Todo
+        <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
+          Phase 2: Real-time Sync
         </span>
       </div>
     </header>

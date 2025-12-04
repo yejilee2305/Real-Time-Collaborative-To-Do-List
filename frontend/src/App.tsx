@@ -3,21 +3,33 @@ import { useTodoStore } from './stores/todoStore';
 import { TodoList } from './components/TodoList';
 import { AddTodoForm } from './components/AddTodoForm';
 import { Header } from './components/Header';
+import { ConnectionStatus } from './components/ConnectionStatus';
+import { TypingIndicator } from './components/TypingIndicator';
+import { OnlineUsers } from './components/OnlineUsers';
 
 function App() {
-  const { fetchTodos, isLoading, error } = useTodoStore();
+  const { fetchTodos, initializeSocket, isLoading, error } = useTodoStore();
 
   useEffect(() => {
-    // Using a demo list ID for now. Will be dynamic in Phase 2
+    // Initialize socket connection
+    initializeSocket();
+    // Fetch initial todos
     fetchTodos();
-  }, [fetchTodos]);
+  }, [fetchTodos, initializeSocket]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-8">
+        <div className="mb-4 flex items-center justify-between">
+          <ConnectionStatus />
+          <OnlineUsers />
+        </div>
+
         <div className="rounded-lg bg-white p-6 shadow-sm">
           <AddTodoForm />
+
+          <TypingIndicator />
 
           {error && (
             <div className="mb-4 rounded-md bg-red-50 p-4 text-red-700">

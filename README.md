@@ -8,9 +8,9 @@ A shared todo list where multiple users can add, edit, and check off items simul
 | --------- | ----------------------------- |
 | Frontend  | React + TypeScript + Vite     |
 | Backend   | Node.js + Express + TypeScript|
-| Real-time | Socket.io (Phase 2)           |
+| Real-time | Socket.io                     |
 | Database  | PostgreSQL + Redis            |
-| Auth      | TBD (Phase 2)                 |
+| Auth      | TBD (Phase 3)                 |
 
 ## Project Structure
 
@@ -105,12 +105,33 @@ A shared todo list where multiple users can add, edit, and check off items simul
 - `POST /api/users` - Create a user
 - `POST /api/users/find-or-create` - Find or create user by email
 
+## Real-time Events (WebSocket)
+
+The app uses Socket.io for real-time synchronization:
+
+### Client Events (sent to server)
+- `join-list` - Join a todo list room
+- `leave-list` - Leave a todo list room
+- `todo:create` - Create a new todo
+- `todo:update` - Update a todo
+- `todo:delete` - Delete a todo
+- `todo:reorder` - Reorder a todo
+- `user:typing` - Send typing indicator
+
+### Server Events (broadcast to clients)
+- `todo:created` - Todo was created
+- `todo:updated` - Todo was updated
+- `todo:deleted` - Todo was deleted
+- `todo:reordered` - Todo was reordered
+- `presence:update` - User presence changed
+- `user:typing` - User typing status changed
+
 ## Development Phases
 
 - [x] **Phase 1**: Foundation - Basic CRUD, REST API
-- [ ] **Phase 2**: Real-time - Socket.io integration
+- [x] **Phase 2**: Real-time - Socket.io integration, presence, typing indicators
 - [ ] **Phase 3**: Authentication - User auth & permissions
-- [ ] **Phase 4**: Collaboration - Presence, conflict resolution
+- [ ] **Phase 4**: Collaboration - Conflict resolution, assignments
 - [ ] **Phase 5**: Polish - UI/UX improvements, deployment
 
 ## License
