@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    clerk_id VARCHAR(255) UNIQUE,
+    supabase_id VARCHAR(255) UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     avatar_url TEXT,
@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Index for clerk_id lookup
-CREATE INDEX IF NOT EXISTS idx_users_clerk_id ON users(clerk_id);
+-- Index for supabase_id lookup
+CREATE INDEX IF NOT EXISTS idx_users_supabase_id ON users(supabase_id);
 
 -- Todo lists table
 CREATE TABLE IF NOT EXISTS lists (
