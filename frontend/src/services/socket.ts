@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { TodoItem, CreateTodoDto, UpdateTodoDto, OnlineUser } from '@sync/shared';
+import { TodoItem, CreateTodoDto, UpdateTodoDto, OnlineUser, ConflictError } from '@sync/shared';
 
 // Socket event types matching the backend
 interface ServerToClientEvents {
@@ -7,21 +7,23 @@ interface ServerToClientEvents {
   'todo:updated': (todo: TodoItem) => void;
   'todo:deleted': (data: { id: string; listId: string }) => void;
   'todo:reordered': (todo: TodoItem) => void;
+  'todo:conflict': (conflict: ConflictError) => void;
   'user:joined': (data: { user: OnlineUser; listId: string }) => void;
   'user:left': (data: { userId: string; listId: string }) => void;
   'presence:update': (data: { listId: string; users: OnlineUser[] }) => void;
   'user:typing': (data: { userId: string; listId: string; isTyping: boolean }) => void;
   'user:selecting': (data: { userId: string; listId: string; todoId: string | null }) => void;
   'error': (data: { message: string }) => void;
+  'sync:ack': (data: { operationId: string; success: boolean; todoId?: string }) => void;
 }
 
 interface ClientToServerEvents {
   'join-list': (data: { listId: string; userId: string; userName: string }) => void;
   'leave-list': (data: { listId: string; userId: string }) => void;
-  'todo:create': (data: CreateTodoDto & { createdBy: string }) => void;
-  'todo:update': (data: { id: string; updates: UpdateTodoDto }) => void;
-  'todo:delete': (data: { id: string; listId: string }) => void;
-  'todo:reorder': (data: { id: string; newPosition: number; listId: string }) => void;
+  'todo:create': (data: CreateTodoDto & { createdBy: string; operationId?: string }) => void;
+  'todo:update': (data: { id: string; updates: UpdateTodoDto; version?: number; editedBy?: string; operationId?: string }) => void;
+  'todo:delete': (data: { id: string; listId: string; version?: number; operationId?: string }) => void;
+  'todo:reorder': (data: { id: string; newPosition: number; listId: string; editedBy?: string; operationId?: string }) => void;
   'user:typing': (data: { listId: string; userId: string; isTyping: boolean }) => void;
   'user:selecting': (data: { listId: string; userId: string; todoId: string | null }) => void;
 }
@@ -43,6 +45,7 @@ class SocketService {
   public onTodoUpdated: ((todo: TodoItem) => void) | null = null;
   public onTodoDeleted: ((data: { id: string; listId: string }) => void) | null = null;
   public onTodoReordered: ((todo: TodoItem) => void) | null = null;
+  public onTodoConflict: ((conflict: ConflictError) => void) | null = null;
   public onUserJoined: ((data: { user: OnlineUser; listId: string }) => void) | null = null;
   public onUserLeft: ((data: { userId: string; listId: string }) => void) | null = null;
   public onPresenceUpdate: ((data: { listId: string; users: OnlineUser[] }) => void) | null = null;
@@ -50,6 +53,7 @@ class SocketService {
   public onUserSelecting: ((data: { userId: string; listId: string; todoId: string | null }) => void) | null = null;
   public onError: ((data: { message: string }) => void) | null = null;
   public onConnectionChange: ((connected: boolean) => void) | null = null;
+  public onSyncAck: ((data: { operationId: string; success: boolean; todoId?: string }) => void) | null = null;
 
   connect(): void {
     if (this.socket?.connected) {
@@ -111,6 +115,10 @@ class SocketService {
       this.onTodoReordered?.(todo);
     });
 
+    this.socket.on('todo:conflict', (conflict) => {
+      this.onTodoConflict?.(conflict);
+    });
+
     // Presence events
     this.socket.on('user:joined', (data) => {
       this.onUserJoined?.(data);
@@ -136,6 +144,10 @@ class SocketService {
       console.error('Socket error:', data.message);
       this.onError?.(data);
     });
+
+    this.socket.on('sync:ack', (data) => {
+      this.onSyncAck?.(data);
+    });
   }
 
   disconnect(): void {
@@ -158,20 +170,32 @@ class SocketService {
     this.currentListId = null;
   }
 
-  createTodo(data: CreateTodoDto & { createdBy: string }): void {
+  createTodo(data: CreateTodoDto & { createdBy: string; operationId?: string }): void {
     this.socket?.emit('todo:create', data);
   }
 
-  updateTodo(id: string, updates: UpdateTodoDto): void {
-    this.socket?.emit('todo:update', { id, updates });
+  updateTodo(
+    id: string,
+    updates: UpdateTodoDto,
+    version?: number,
+    editedBy?: string,
+    operationId?: string
+  ): void {
+    this.socket?.emit('todo:update', { id, updates, version, editedBy, operationId });
   }
 
-  deleteTodo(id: string, listId: string): void {
-    this.socket?.emit('todo:delete', { id, listId });
+  deleteTodo(id: string, listId: string, version?: number, operationId?: string): void {
+    this.socket?.emit('todo:delete', { id, listId, version, operationId });
   }
 
-  reorderTodo(id: string, newPosition: number, listId: string): void {
-    this.socket?.emit('todo:reorder', { id, newPosition, listId });
+  reorderTodo(
+    id: string,
+    newPosition: number,
+    listId: string,
+    editedBy?: string,
+    operationId?: string
+  ): void {
+    this.socket?.emit('todo:reorder', { id, newPosition, listId, editedBy, operationId });
   }
 
   sendTyping(listId: string, userId: string, isTyping: boolean): void {

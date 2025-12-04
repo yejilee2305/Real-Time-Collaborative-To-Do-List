@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS todos (
     assignee_id UUID REFERENCES users(id) ON DELETE SET NULL,
     position INTEGER NOT NULL DEFAULT 0,
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_edited_by VARCHAR(255),
+    version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

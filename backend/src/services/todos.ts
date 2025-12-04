@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { TodoItem, CreateTodoDto, UpdateTodoDto } from '@sync/shared';
+import { TodoItem, CreateTodoDto, UpdateTodoDto, ConflictError } from '@sync/shared';
 import { db } from '../db';
 
 interface TodoRow {
@@ -14,6 +14,8 @@ interface TodoRow {
   assignee_id: string | null;
   position: number;
   created_by: string;
+  last_edited_by: string | null;
+  version: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -31,6 +33,8 @@ function mapRowToTodo(row: TodoRow): TodoItem {
     assigneeId: row.assignee_id || undefined,
     position: row.position,
     createdBy: row.created_by,
+    lastEditedBy: row.last_edited_by || undefined,
+    version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -70,8 +74,8 @@ export async function createTodo(
 
   const id = uuidv4();
   const result = await db.query<TodoRow>(
-    `INSERT INTO todos (id, list_id, title, description, priority, due_date, assignee_id, position, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO todos (id, list_id, title, description, priority, due_date, assignee_id, position, created_by, last_edited_by, version)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1)
      RETURNING *`,
     [
       id,
@@ -83,16 +87,25 @@ export async function createTodo(
       data.assigneeId || null,
       nextPosition,
       createdBy,
+      createdBy,
     ]
   );
 
   return mapRowToTodo(result.rows[0]);
 }
 
+export interface UpdateResult {
+  success: boolean;
+  todo?: TodoItem;
+  conflict?: ConflictError;
+}
+
 export async function updateTodo(
   id: string,
-  updates: UpdateTodoDto
-): Promise<TodoItem | null> {
+  updates: UpdateTodoDto,
+  expectedVersion?: number,
+  editedBy?: string
+): Promise<UpdateResult> {
   // Build dynamic update query
   const setClauses: string[] = [];
   const values: unknown[] = [];
@@ -136,36 +149,110 @@ export async function updateTodo(
     values.push(updates.position);
   }
 
-  if (setClauses.length === 0) {
-    return getTodoById(id);
+  // Always update last_edited_by if provided
+  if (editedBy) {
+    setClauses.push(`last_edited_by = $${paramIndex++}`);
+    values.push(editedBy);
+  }
+
+  // Increment version
+  setClauses.push(`version = version + 1`);
+
+  if (setClauses.length === 1) {
+    // Only version update, nothing to change
+    const todo = await getTodoById(id);
+    return { success: true, todo: todo || undefined };
   }
 
   values.push(id);
+
+  // If expectedVersion is provided, use optimistic locking
+  if (expectedVersion !== undefined) {
+    values.push(expectedVersion);
+    const result = await db.query<TodoRow>(
+      `UPDATE todos SET ${setClauses.join(', ')}
+       WHERE id = $${paramIndex} AND version = $${paramIndex + 1}
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      // Check if todo exists with different version (conflict)
+      const currentTodo = await getTodoById(id);
+      if (currentTodo) {
+        return {
+          success: false,
+          conflict: {
+            type: 'VERSION_CONFLICT',
+            todoId: id,
+            clientVersion: expectedVersion,
+            serverVersion: currentTodo.version,
+            serverData: currentTodo,
+            message: `Version conflict: expected ${expectedVersion}, but server has ${currentTodo.version}`,
+          },
+        };
+      }
+      // Todo doesn't exist
+      return { success: false };
+    }
+
+    return { success: true, todo: mapRowToTodo(result.rows[0]) };
+  }
+
+  // No version check, just update
   const result = await db.query<TodoRow>(
     `UPDATE todos SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
     values
   );
 
   if (result.rows.length === 0) {
-    return null;
+    return { success: false };
   }
 
-  return mapRowToTodo(result.rows[0]);
+  return { success: true, todo: mapRowToTodo(result.rows[0]) };
 }
 
-export async function deleteTodo(id: string): Promise<boolean> {
+export interface DeleteResult {
+  success: boolean;
+  conflict?: ConflictError;
+}
+
+export async function deleteTodo(
+  id: string,
+  expectedVersion?: number
+): Promise<DeleteResult> {
+  if (expectedVersion !== undefined) {
+    // Check version before delete
+    const currentTodo = await getTodoById(id);
+    if (currentTodo && currentTodo.version !== expectedVersion) {
+      return {
+        success: false,
+        conflict: {
+          type: 'VERSION_CONFLICT',
+          todoId: id,
+          clientVersion: expectedVersion,
+          serverVersion: currentTodo.version,
+          serverData: currentTodo,
+          message: `Version conflict on delete: expected ${expectedVersion}, but server has ${currentTodo.version}`,
+        },
+      };
+    }
+  }
+
   const result = await db.query(`DELETE FROM todos WHERE id = $1`, [id]);
-  return (result.rowCount ?? 0) > 0;
+  return { success: (result.rowCount ?? 0) > 0 };
 }
 
-export async function toggleTodo(id: string): Promise<TodoItem | null> {
+export async function toggleTodo(id: string, editedBy?: string): Promise<TodoItem | null> {
   const result = await db.query<TodoRow>(
     `UPDATE todos
      SET completed = NOT completed,
-         status = CASE WHEN completed THEN 'pending' ELSE 'completed' END
+         status = CASE WHEN completed THEN 'pending' ELSE 'completed' END,
+         last_edited_by = COALESCE($2, last_edited_by),
+         version = version + 1
      WHERE id = $1
      RETURNING *`,
-    [id]
+    [id, editedBy || null]
   );
 
   if (result.rows.length === 0) {
@@ -177,7 +264,8 @@ export async function toggleTodo(id: string): Promise<TodoItem | null> {
 
 export async function reorderTodo(
   id: string,
-  newPosition: number
+  newPosition: number,
+  editedBy?: string
 ): Promise<TodoItem | null> {
   const client = await db.getClient();
 
@@ -224,8 +312,8 @@ export async function reorderTodo(
 
     // Update the todo's position
     const result = await client.query<TodoRow>(
-      `UPDATE todos SET position = $1 WHERE id = $2 RETURNING *`,
-      [newPosition, id]
+      `UPDATE todos SET position = $1, last_edited_by = COALESCE($3, last_edited_by), version = version + 1 WHERE id = $2 RETURNING *`,
+      [newPosition, id, editedBy || null]
     );
 
     await client.query('COMMIT');

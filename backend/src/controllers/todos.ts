@@ -72,16 +72,26 @@ export async function updateTodo(
   try {
     const { id } = req.params;
     const updates: UpdateTodoDto = req.body;
+    const version = req.body.version as number | undefined;
+    const editedBy = req.body.editedBy as string | undefined;
 
-    const todo = await todosService.updateTodo(id, updates);
+    const result = await todosService.updateTodo(id, updates, version, editedBy);
 
-    if (!todo) {
+    if (!result.success && result.conflict) {
+      res.status(409).json({
+        success: false,
+        error: result.conflict.message,
+      });
+      return;
+    }
+
+    if (!result.todo) {
       throw new AppError(404, 'Todo not found');
     }
 
     res.json({
       success: true,
-      data: todo,
+      data: result.todo,
     });
   } catch (error) {
     next(error);

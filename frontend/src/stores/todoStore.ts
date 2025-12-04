@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { TodoItem, TodoPriority, UpdateTodoDto, OnlineUser } from '@sync/shared';
+import { TodoItem, TodoPriority, UpdateTodoDto, OnlineUser, ConflictError, PendingOperation } from '@sync/shared';
 import { todoApi } from '../services/api';
 import { socketService } from '../services/socket';
+import { operationQueue } from '../services/operationQueue';
 
 // Generate a unique user ID for this session (will be replaced with auth in Phase 3)
 const generateUserId = () => {
@@ -38,6 +39,10 @@ interface TodoState {
   typingUsers: OnlineUser[];
   userSelections: Map<string, string>; // userId -> todoId
 
+  // Conflict resolution state
+  pendingOperations: PendingOperation[];
+  conflicts: ConflictError[];
+
   // Actions
   fetchTodos: (listId?: string) => Promise<void>;
   setTodos: (todos: TodoItem[]) => void;
@@ -56,10 +61,16 @@ interface TodoState {
   initializeSocket: () => void;
   joinList: (listId: string) => void;
 
+  // Conflict resolution actions
+  resolveConflict: (todoId: string, resolution: 'accept-server' | 'retry') => void;
+  dismissConflict: (todoId: string) => void;
+  retryPendingOperations: () => void;
+
   // Helpers
   getUserColor: (userId: string) => string;
   getUserName: (userId: string) => string;
   getSelectingUsers: (todoId: string) => OnlineUser[];
+  getTodoVersion: (todoId: string) => number | undefined;
 }
 
 export const useTodoStore = create<TodoState>((set, get) => {
@@ -79,6 +90,10 @@ export const useTodoStore = create<TodoState>((set, get) => {
     onlineUsers: [],
     typingUsers: [],
     userSelections: new Map(),
+
+    // Conflict resolution state
+    pendingOperations: [],
+    conflicts: [],
 
     initializeSocket: () => {
       const { currentListId, currentUserId, currentUserName } = get();
@@ -109,6 +124,19 @@ export const useTodoStore = create<TodoState>((set, get) => {
       socketService.onTodoReordered = (todo) => {
         set((state) => ({
           todos: state.todos.map((t) => (t.id === todo.id ? todo : t)),
+        }));
+      };
+
+      socketService.onTodoConflict = (conflict) => {
+        console.warn('Conflict detected:', conflict);
+        set((state) => ({
+          conflicts: [...state.conflicts.filter((c) => c.todoId !== conflict.todoId), conflict],
+        }));
+        // Also update the todo with server data (server-wins by default for now)
+        set((state) => ({
+          todos: state.todos.map((t) =>
+            t.id === conflict.todoId ? conflict.serverData : t
+          ),
         }));
       };
 
@@ -144,6 +172,7 @@ export const useTodoStore = create<TodoState>((set, get) => {
 
       socketService.onConnectionChange = (connected) => {
         set({ isConnected: connected });
+        operationQueue.setOnline(connected);
         if (connected) {
           socketService.joinList(currentListId, currentUserId, currentUserName);
         }
@@ -151,6 +180,57 @@ export const useTodoStore = create<TodoState>((set, get) => {
 
       socketService.onError = ({ message }) => {
         set({ error: message });
+      };
+
+      socketService.onSyncAck = ({ operationId, success }) => {
+        operationQueue.acknowledgeOperation(operationId, success);
+      };
+
+      // Set up operation queue handlers
+      operationQueue.onOperationExecute = async (op: PendingOperation) => {
+        const { currentUserId } = get();
+        switch (op.type) {
+          case 'create':
+            socketService.createTodo({
+              ...(op.payload as { listId: string; title: string; priority?: TodoPriority }),
+              createdBy: currentUserId,
+              operationId: op.id,
+            });
+            break;
+          case 'update': {
+            const updatePayload = op.payload as { id: string; updates: UpdateTodoDto };
+            socketService.updateTodo(
+              updatePayload.id,
+              updatePayload.updates,
+              op.version,
+              currentUserId,
+              op.id
+            );
+            break;
+          }
+          case 'delete':
+            socketService.deleteTodo(op.todoId!, op.listId, op.version, op.id);
+            break;
+          case 'reorder': {
+            const reorderPayload = op.payload as { id: string; newPosition: number };
+            socketService.reorderTodo(
+              reorderPayload.id,
+              reorderPayload.newPosition,
+              op.listId,
+              currentUserId,
+              op.id
+            );
+            break;
+          }
+        }
+      };
+
+      operationQueue.onConflict = (conflict) => {
+        operationQueue.handleConflict(conflict);
+      };
+
+      operationQueue.onQueueChange = (queue) => {
+        set({ pendingOperations: queue });
       };
 
       // Connect and join list
@@ -175,67 +255,90 @@ export const useTodoStore = create<TodoState>((set, get) => {
     setTodos: (todos) => set({ todos }),
 
     addTodo: (data) => {
-      const { currentListId, currentUserId } = get();
+      const { currentListId, currentUserId, isConnected } = get();
 
-      // Send via socket - the server will broadcast to all clients including sender
-      socketService.createTodo({
+      const payload = {
         listId: currentListId,
         title: data.title,
         priority: data.priority || 'medium',
-        createdBy: currentUserId,
-      });
+      };
+
+      if (isConnected) {
+        // Send directly via socket
+        socketService.createTodo({
+          ...payload,
+          createdBy: currentUserId,
+        });
+      } else {
+        // Queue for later
+        operationQueue.enqueue('create', currentListId, payload);
+      }
     },
 
     updateTodo: (id, updates) => {
-      const { todos } = get();
+      const { todos, currentListId, currentUserId, isConnected } = get();
+      const todo = todos.find((t) => t.id === id);
+      if (!todo) return;
 
       // Optimistic update - convert null to undefined for compatibility
       const sanitizedUpdates = Object.fromEntries(
-        Object.entries(updates).map(([key, value]) => [
-          key,
-          value === null ? undefined : value,
-        ])
+        Object.entries(updates).map(([key, value]) => [key, value === null ? undefined : value])
       );
       set({
         todos: todos.map((t) =>
-          t.id === id ? { ...t, ...sanitizedUpdates } : t
+          t.id === id ? { ...t, ...sanitizedUpdates, version: (t.version || 1) + 1 } : t
         ) as TodoItem[],
       });
 
-      // Send via socket
-      socketService.updateTodo(id, updates);
+      if (isConnected) {
+        // Send via socket with version for conflict detection
+        socketService.updateTodo(id, updates, todo.version, currentUserId);
+      } else {
+        // Queue for later
+        operationQueue.enqueue('update', currentListId, { id, updates }, id, todo.version);
+      }
     },
 
     toggleTodo: (id) => {
-      const { todos } = get();
+      const { todos, currentListId, currentUserId, isConnected } = get();
       const todo = todos.find((t) => t.id === id);
       if (!todo) return;
+
+      const updates = { completed: !todo.completed };
 
       // Optimistic update
       set({
         todos: todos.map((t) =>
-          t.id === id ? { ...t, completed: !t.completed } : t
+          t.id === id ? { ...t, completed: !t.completed, version: (t.version || 1) + 1 } : t
         ),
       });
 
-      // Send via socket
-      socketService.updateTodo(id, { completed: !todo.completed });
+      if (isConnected) {
+        socketService.updateTodo(id, updates, todo.version, currentUserId);
+      } else {
+        operationQueue.enqueue('update', currentListId, { id, updates }, id, todo.version);
+      }
     },
 
     deleteTodo: (id) => {
-      const { todos, currentListId } = get();
+      const { todos, currentListId, isConnected } = get();
+      const todo = todos.find((t) => t.id === id);
+      if (!todo) return;
 
       // Optimistic update
       set({
         todos: todos.filter((t) => t.id !== id),
       });
 
-      // Send via socket
-      socketService.deleteTodo(id, currentListId);
+      if (isConnected) {
+        socketService.deleteTodo(id, currentListId, todo.version);
+      } else {
+        operationQueue.enqueue('delete', currentListId, {}, id, todo.version);
+      }
     },
 
     reorderTodo: (id, newPosition) => {
-      const { todos, currentListId } = get();
+      const { todos, currentListId, currentUserId, isConnected } = get();
       const todoIndex = todos.findIndex((t) => t.id === id);
       if (todoIndex === -1) return;
 
@@ -245,8 +348,11 @@ export const useTodoStore = create<TodoState>((set, get) => {
       newTodos.splice(newPosition, 0, movedTodo);
       set({ todos: newTodos });
 
-      // Send via socket
-      socketService.reorderTodo(id, newPosition, currentListId);
+      if (isConnected) {
+        socketService.reorderTodo(id, newPosition, currentListId, currentUserId);
+      } else {
+        operationQueue.enqueue('reorder', currentListId, { id, newPosition }, id);
+      }
     },
 
     clearError: () => set({ error: null }),
@@ -280,9 +386,41 @@ export const useTodoStore = create<TodoState>((set, get) => {
         onlineUsers: [],
         typingUsers: [],
         userSelections: new Map(),
+        conflicts: [],
       });
 
       socketService.joinList(listId, currentUserId, currentUserName);
+    },
+
+    // Conflict resolution actions
+    resolveConflict: (todoId, resolution) => {
+      const { conflicts, todos } = get();
+      const conflict = conflicts.find((c) => c.todoId === todoId);
+      if (!conflict) return;
+
+      if (resolution === 'accept-server') {
+        // Update with server data
+        set({
+          todos: todos.map((t) => (t.id === todoId ? conflict.serverData : t)),
+          conflicts: conflicts.filter((c) => c.todoId !== todoId),
+        });
+      } else if (resolution === 'retry') {
+        // Retry the operation with the new version
+        operationQueue.retryFailed();
+        set({
+          conflicts: conflicts.filter((c) => c.todoId !== todoId),
+        });
+      }
+    },
+
+    dismissConflict: (todoId) => {
+      set((state) => ({
+        conflicts: state.conflicts.filter((c) => c.todoId !== todoId),
+      }));
+    },
+
+    retryPendingOperations: () => {
+      operationQueue.retryFailed();
     },
 
     // Helper functions
@@ -304,6 +442,11 @@ export const useTodoStore = create<TodoState>((set, get) => {
       return onlineUsers.filter(
         (u) => u.userId !== currentUserId && userSelections.get(u.userId) === todoId
       );
+    },
+
+    getTodoVersion: (todoId) => {
+      const { todos } = get();
+      return todos.find((t) => t.id === todoId)?.version;
     },
   };
 });

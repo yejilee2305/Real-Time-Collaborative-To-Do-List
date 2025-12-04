@@ -50,6 +50,8 @@ export interface TodoItem {
   assigneeId?: string;
   position: number;
   createdBy: string;
+  lastEditedBy?: string;
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -111,20 +113,51 @@ export interface PaginatedResponse<T> {
   hasMore: boolean;
 }
 
-// Socket event types (for Phase 2)
+// Conflict resolution types
+export type ConflictResolution = 'server-wins' | 'client-wins' | 'merge' | 'manual';
+
+export interface ConflictError {
+  type: 'VERSION_CONFLICT';
+  todoId: string;
+  clientVersion: number;
+  serverVersion: number;
+  serverData: TodoItem;
+  message: string;
+}
+
+export interface OperationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: ConflictError | { type: string; message: string };
+}
+
+// Pending operation for offline queue
+export interface PendingOperation {
+  id: string;
+  type: 'create' | 'update' | 'delete' | 'reorder';
+  todoId?: string;
+  listId: string;
+  payload: unknown;
+  timestamp: number;
+  retryCount: number;
+  version?: number;
+}
+
+// Socket event types
 export interface SocketEvents {
   // Client -> Server
   'join-list': { listId: string };
   'leave-list': { listId: string };
   'todo:create': CreateTodoDto;
-  'todo:update': { id: string; updates: UpdateTodoDto };
-  'todo:delete': { id: string };
+  'todo:update': { id: string; updates: UpdateTodoDto; version: number };
+  'todo:delete': { id: string; version: number };
   'todo:reorder': { id: string; newPosition: number };
 
   // Server -> Client
   'todo:created': TodoItem;
   'todo:updated': TodoItem;
   'todo:deleted': { id: string };
+  'todo:conflict': ConflictError;
   'user:joined': { userId: string; listId: string };
   'user:left': { userId: string; listId: string };
   'presence:update': { listId: string; users: string[] };

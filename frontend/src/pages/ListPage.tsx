@@ -8,6 +8,7 @@ import { ConnectionStatus } from '../components/ConnectionStatus';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { OnlineUsers } from '../components/OnlineUsers';
 import { ShareLink } from '../components/ShareLink';
+import { SyncStatus } from '../components/SyncStatus';
 
 export function ListPage() {
   const { listId } = useParams<{ listId: string }>();
@@ -53,6 +54,8 @@ export function ListPage() {
           </div>
           <OnlineUsers />
         </div>
+
+        <SyncStatus />
 
         <div className="rounded-lg bg-white p-6 shadow-sm">
           <AddTodoForm />

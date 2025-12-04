@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { TodoItem, CreateTodoDto, UpdateTodoDto, OnlineUser } from '@sync/shared';
+import { TodoItem, CreateTodoDto, UpdateTodoDto, OnlineUser, ConflictError } from '@sync/shared';
 import * as todosService from '../services/todos';
 
 // Predefined colors for users
@@ -44,21 +44,23 @@ export interface ServerToClientEvents {
   'todo:updated': (todo: TodoItem) => void;
   'todo:deleted': (data: { id: string; listId: string }) => void;
   'todo:reordered': (todo: TodoItem) => void;
+  'todo:conflict': (conflict: ConflictError) => void;
   'user:joined': (data: { user: OnlineUser; listId: string }) => void;
   'user:left': (data: { userId: string; listId: string }) => void;
   'presence:update': (data: { listId: string; users: OnlineUser[] }) => void;
   'user:typing': (data: { userId: string; listId: string; isTyping: boolean }) => void;
   'user:selecting': (data: { userId: string; listId: string; todoId: string | null }) => void;
   'error': (data: { message: string }) => void;
+  'sync:ack': (data: { operationId: string; success: boolean; todoId?: string }) => void;
 }
 
 export interface ClientToServerEvents {
   'join-list': (data: { listId: string; userId: string; userName: string }) => void;
   'leave-list': (data: { listId: string; userId: string }) => void;
-  'todo:create': (data: CreateTodoDto & { createdBy: string }) => void;
-  'todo:update': (data: { id: string; updates: UpdateTodoDto }) => void;
-  'todo:delete': (data: { id: string; listId: string }) => void;
-  'todo:reorder': (data: { id: string; newPosition: number; listId: string }) => void;
+  'todo:create': (data: CreateTodoDto & { createdBy: string; operationId?: string }) => void;
+  'todo:update': (data: { id: string; updates: UpdateTodoDto; version?: number; editedBy?: string; operationId?: string }) => void;
+  'todo:delete': (data: { id: string; listId: string; version?: number; operationId?: string }) => void;
+  'todo:reorder': (data: { id: string; newPosition: number; listId: string; editedBy?: string; operationId?: string }) => void;
   'user:typing': (data: { listId: string; userId: string; isTyping: boolean }) => void;
   'user:selecting': (data: { listId: string; userId: string; todoId: string | null }) => void;
 }
@@ -149,56 +151,103 @@ export function setupSocketServer(httpServer: HttpServer): Server {
           data.createdBy
         );
 
+        // Send ack to the sender if operationId provided
+        if (data.operationId) {
+          socket.emit('sync:ack', { operationId: data.operationId, success: true, todoId: todo.id });
+        }
+
         // Broadcast to all users in the list (including sender)
         io.to(data.listId).emit('todo:created', todo);
         console.log(`✅ Todo created: ${todo.id} in list ${data.listId}`);
       } catch (error) {
         console.error('Error creating todo:', error);
+        if (data.operationId) {
+          socket.emit('sync:ack', { operationId: data.operationId, success: false });
+        }
         socket.emit('error', { message: 'Failed to create todo' });
       }
     });
 
     // Handle updating a todo
-    socket.on('todo:update', async ({ id, updates }) => {
+    socket.on('todo:update', async ({ id, updates, version, editedBy, operationId }) => {
       try {
-        const todo = await todosService.updateTodo(id, updates);
-        if (todo) {
+        const result = await todosService.updateTodo(id, updates, version, editedBy);
+
+        if (result.conflict) {
+          // Send conflict error to the client
+          console.log(`⚠️ Version conflict on todo ${id}: client v${version} vs server v${result.conflict.serverVersion}`);
+          socket.emit('todo:conflict', result.conflict);
+          if (operationId) {
+            socket.emit('sync:ack', { operationId, success: false });
+          }
+          return;
+        }
+
+        if (result.success && result.todo) {
+          if (operationId) {
+            socket.emit('sync:ack', { operationId, success: true, todoId: id });
+          }
           // Broadcast to all users in the list
-          io.to(todo.listId).emit('todo:updated', todo);
-          console.log(`✏️ Todo updated: ${id}`);
+          io.to(result.todo.listId).emit('todo:updated', result.todo);
+          console.log(`✏️ Todo updated: ${id} (v${result.todo.version})`);
         }
       } catch (error) {
         console.error('Error updating todo:', error);
+        if (operationId) {
+          socket.emit('sync:ack', { operationId, success: false });
+        }
         socket.emit('error', { message: 'Failed to update todo' });
       }
     });
 
     // Handle deleting a todo
-    socket.on('todo:delete', async ({ id, listId }) => {
+    socket.on('todo:delete', async ({ id, listId, version, operationId }) => {
       try {
-        const deleted = await todosService.deleteTodo(id);
-        if (deleted) {
+        const result = await todosService.deleteTodo(id, version);
+
+        if (result.conflict) {
+          console.log(`⚠️ Version conflict on delete todo ${id}`);
+          socket.emit('todo:conflict', result.conflict);
+          if (operationId) {
+            socket.emit('sync:ack', { operationId, success: false });
+          }
+          return;
+        }
+
+        if (result.success) {
+          if (operationId) {
+            socket.emit('sync:ack', { operationId, success: true, todoId: id });
+          }
           // Broadcast to all users in the list
           io.to(listId).emit('todo:deleted', { id, listId });
           console.log(`🗑️ Todo deleted: ${id}`);
         }
       } catch (error) {
         console.error('Error deleting todo:', error);
+        if (operationId) {
+          socket.emit('sync:ack', { operationId, success: false });
+        }
         socket.emit('error', { message: 'Failed to delete todo' });
       }
     });
 
     // Handle reordering a todo
-    socket.on('todo:reorder', async ({ id, newPosition, listId }) => {
+    socket.on('todo:reorder', async ({ id, newPosition, listId, editedBy, operationId }) => {
       try {
-        const todo = await todosService.reorderTodo(id, newPosition);
+        const todo = await todosService.reorderTodo(id, newPosition, editedBy);
         if (todo) {
+          if (operationId) {
+            socket.emit('sync:ack', { operationId, success: true, todoId: id });
+          }
           // Broadcast to all users in the list
           io.to(listId).emit('todo:reordered', todo);
           console.log(`🔄 Todo reordered: ${id} to position ${newPosition}`);
         }
       } catch (error) {
         console.error('Error reordering todo:', error);
+        if (operationId) {
+          socket.emit('sync:ack', { operationId, success: false });
+        }
         socket.emit('error', { message: 'Failed to reorder todo' });
       }
     });

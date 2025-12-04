@@ -19,7 +19,7 @@ export function Header() {
           <h1 className="text-xl font-bold text-gray-900">Sync</h1>
         </div>
         <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
-          Phase 3: Collaboration
+          Phase 4: Conflict Resolution
         </span>
       </div>
     </header>
