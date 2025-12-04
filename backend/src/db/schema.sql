@@ -4,12 +4,16 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clerk_id VARCHAR(255) UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     avatar_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Index for clerk_id lookup
+CREATE INDEX IF NOT EXISTS idx_users_clerk_id ON users(clerk_id);
 
 -- Todo lists table
 CREATE TABLE IF NOT EXISTS lists (
@@ -50,6 +54,20 @@ CREATE TABLE IF NOT EXISTS todos (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- List invites table for email invitations
+CREATE TABLE IF NOT EXISTS list_invites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    list_id UUID NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'editor' CHECK (role IN ('owner', 'editor', 'viewer')),
+    invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
+    token VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(list_id, email)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_todos_list_id ON todos(list_id);
 CREATE INDEX IF NOT EXISTS idx_todos_assignee_id ON todos(assignee_id);
@@ -57,6 +75,9 @@ CREATE INDEX IF NOT EXISTS idx_todos_created_by ON todos(created_by);
 CREATE INDEX IF NOT EXISTS idx_todos_position ON todos(list_id, position);
 CREATE INDEX IF NOT EXISTS idx_list_members_user_id ON list_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_list_members_list_id ON list_members(list_id);
+CREATE INDEX IF NOT EXISTS idx_list_invites_email ON list_invites(email);
+CREATE INDEX IF NOT EXISTS idx_list_invites_token ON list_invites(token);
+CREATE INDEX IF NOT EXISTS idx_list_invites_list_id ON list_invites(list_id);
 
 -- Updated at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.57.1",
     "@sync/shared": "*",
     "nanoid": "^5.0.4",
     "react": "^18.2.0",

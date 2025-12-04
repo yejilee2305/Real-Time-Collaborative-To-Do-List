@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { nanoid } from 'nanoid';
+import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { Header } from '../components/Header';
 
 export function HomePage() {
@@ -48,6 +49,37 @@ export function HomePage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="mx-auto max-w-2xl px-4 py-12">
+        {/* Auth section */}
+        <div className="mb-8 flex justify-center">
+          <SignedOut>
+            <div className="flex gap-3">
+              <Link
+                to="/sign-in"
+                className="rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/sign-up"
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </SignedOut>
+          <SignedIn>
+            <div className="flex items-center gap-4">
+              <Link
+                to="/dashboard"
+                className="rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
+              >
+                Go to My Lists
+              </Link>
+              <UserButton afterSignOutUrl="/" />
+            </div>
+          </SignedIn>
+        </div>
+
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Real-time Collaborative Todo Lists

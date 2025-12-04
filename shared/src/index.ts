@@ -1,6 +1,7 @@
 // User types
 export interface User {
   id: string;
+  clerkId: string;
   email: string;
   name: string;
   avatarUrl?: string;
@@ -9,9 +10,51 @@ export interface User {
 }
 
 export interface CreateUserDto {
+  clerkId: string;
   email: string;
   name: string;
   avatarUrl?: string;
+}
+
+// Auth types
+export interface AuthUser {
+  id: string;
+  clerkId: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+// Invitation types
+export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'expired';
+
+export interface ListInvite {
+  id: string;
+  listId: string;
+  email: string;
+  role: MemberRole;
+  invitedBy: string;
+  status: InviteStatus;
+  token: string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+export interface CreateInviteDto {
+  listId: string;
+  email: string;
+  role: MemberRole;
+}
+
+// List with member info
+export interface ListWithMembers extends TodoList {
+  members: ListMemberWithUser[];
+  memberCount: number;
+  userRole?: MemberRole;
+}
+
+export interface ListMemberWithUser extends ListMember {
+  user: Pick<User, 'id' | 'email' | 'name' | 'avatarUrl'>;
 }
 
 // List types
