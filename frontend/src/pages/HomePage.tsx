@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { nanoid } from 'nanoid';
-import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
+import { useAuth } from '../contexts/AuthContext';
 import { Header } from '../components/Header';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [recentLists, setRecentLists] = useState<string[]>(() => {
     const stored = localStorage.getItem('sync-recent-lists');
     return stored ? JSON.parse(stored) : [];
@@ -51,7 +52,7 @@ export function HomePage() {
       <main className="mx-auto max-w-2xl px-4 py-12">
         {/* Auth section */}
         <div className="mb-8 flex justify-center">
-          <SignedOut>
+          {!user ? (
             <div className="flex gap-3">
               <Link
                 to="/sign-in"
@@ -66,8 +67,7 @@ export function HomePage() {
                 Sign Up
               </Link>
             </div>
-          </SignedOut>
-          <SignedIn>
+          ) : (
             <div className="flex items-center gap-4">
               <Link
                 to="/dashboard"
@@ -75,9 +75,14 @@ export function HomePage() {
               >
                 Go to My Lists
               </Link>
-              <UserButton afterSignOutUrl="/" />
+              <button
+                onClick={() => signOut()}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Sign Out
+              </button>
             </div>
-          </SignedIn>
+          )}
         </div>
 
         <div className="text-center mb-12">

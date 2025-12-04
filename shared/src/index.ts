@@ -1,7 +1,7 @@
 // User types
 export interface User {
   id: string;
-  clerkId: string;
+  supabaseId: string;
   email: string;
   name: string;
   avatarUrl?: string;
@@ -10,7 +10,7 @@ export interface User {
 }
 
 export interface CreateUserDto {
-  clerkId: string;
+  supabaseId: string;
   email: string;
   name: string;
   avatarUrl?: string;
@@ -19,7 +19,7 @@ export interface CreateUserDto {
 // Auth types
 export interface AuthUser {
   id: string;
-  clerkId: string;
+  supabaseId: string;
   email: string;
   name: string;
   avatarUrl?: string;

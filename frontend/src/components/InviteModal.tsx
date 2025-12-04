@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth } from '../contexts/AuthContext';
 import { MemberRole, ListInvite } from '@sync/shared';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';

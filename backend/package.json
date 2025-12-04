@@ -14,7 +14,7 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
-    "@clerk/express": "^1.7.54",
+    "@supabase/supabase-js": "^2.39.0",
     "@sync/shared": "*",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",

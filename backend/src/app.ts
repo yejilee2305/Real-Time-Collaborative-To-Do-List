@@ -2,16 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { clerkMiddleware } from '@clerk/express';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { generalLimiter } from './middleware/rateLimiter';
 import routes from './routes';
 
 const app = express();
-
-// Clerk authentication middleware
-app.use(clerkMiddleware());
 
 // Security middleware
 app.use(helmet());

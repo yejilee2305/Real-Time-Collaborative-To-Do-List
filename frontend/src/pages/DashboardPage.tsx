@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser, useAuth, UserButton } from '@clerk/clerk-react';
+import { useAuth } from '../contexts/AuthContext';
 import { ListWithMembers, ListInvite } from '@sync/shared';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export function DashboardPage() {
-  const { user } = useUser();
-  const { getToken } = useAuth();
+  const { user, getToken, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [lists, setLists] = useState<ListWithMembers[]>([]);
@@ -161,9 +160,14 @@ export function DashboardPage() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              Welcome, {user?.firstName || user?.emailAddresses[0]?.emailAddress}
+              Welcome, {user?.user_metadata?.name || user?.email}
             </span>
-            <UserButton afterSignOutUrl="/" />
+            <button
+              onClick={() => signOut()}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>

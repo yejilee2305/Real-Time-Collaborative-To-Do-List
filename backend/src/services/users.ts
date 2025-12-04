@@ -4,7 +4,7 @@ import { db } from '../db';
 
 interface UserRow {
   id: string;
-  clerk_id: string | null;
+  supabase_id: string | null;
   email: string;
   name: string;
   avatar_url: string | null;
@@ -15,7 +15,7 @@ interface UserRow {
 function mapRowToUser(row: UserRow): User {
   return {
     id: row.id,
-    clerkId: row.clerk_id || '',
+    supabaseId: row.supabase_id || '',
     email: row.email,
     name: row.name,
     avatarUrl: row.avatar_url || undefined,
@@ -49,10 +49,10 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return mapRowToUser(result.rows[0]);
 }
 
-export async function getUserByClerkId(clerkId: string): Promise<User | null> {
+export async function getUserBySupabaseId(supabaseId: string): Promise<User | null> {
   const result = await db.query<UserRow>(
-    `SELECT * FROM users WHERE clerk_id = $1`,
-    [clerkId]
+    `SELECT * FROM users WHERE supabase_id = $1`,
+    [supabaseId]
   );
 
   if (result.rows.length === 0) {
@@ -65,10 +65,10 @@ export async function getUserByClerkId(clerkId: string): Promise<User | null> {
 export async function createUser(data: CreateUserDto): Promise<User> {
   const id = uuidv4();
   const result = await db.query<UserRow>(
-    `INSERT INTO users (id, clerk_id, email, name, avatar_url)
+    `INSERT INTO users (id, supabase_id, email, name, avatar_url)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [id, data.clerkId, data.email, data.name, data.avatarUrl || null]
+    [id, data.supabaseId, data.email, data.name, data.avatarUrl || null]
   );
 
   return mapRowToUser(result.rows[0]);
