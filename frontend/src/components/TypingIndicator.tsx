@@ -40,7 +40,7 @@ export function TypingIndicator() {
   };
 
   return (
-    <div className="mb-4 flex items-center gap-2 text-sm text-gray-500">
+    <div className="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
       <div className="flex gap-1">
         <span
           className="animate-bounce"

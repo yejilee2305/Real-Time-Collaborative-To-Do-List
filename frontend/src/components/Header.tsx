@@ -1,6 +1,8 @@
+import { ThemeToggle } from './ThemeToggle';
+
 export function Header() {
   return (
-    <header className="border-b bg-white shadow-sm">
+    <header className="border-b bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
         <div className="flex items-center gap-2">
           <svg
@@ -16,11 +18,14 @@ export function Header() {
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
             />
           </svg>
-          <h1 className="text-xl font-bold text-gray-900">Sync</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Sync</h1>
         </div>
-        <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
-          Phase 5: Auth & Persistence
-        </span>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+            Phase 6
+          </span>
+        </div>
       </div>
     </header>
   );

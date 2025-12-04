@@ -106,13 +106,13 @@ export function InviteModal({ listId, isOpen, onClose }: InviteModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg dark:bg-gray-900">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Invite Members</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Invite Members</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -128,7 +128,7 @@ export function InviteModal({ listId, isOpen, onClose }: InviteModalProps) {
         {/* Invite form */}
         <form onSubmit={sendInvite} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email address
             </label>
             <input
@@ -136,16 +136,16 @@ export function InviteModal({ listId, isOpen, onClose }: InviteModalProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="colleague@example.com"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as MemberRole)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               <option value="editor">Editor - Can add and edit todos</option>
               <option value="viewer">Viewer - Can only view todos</option>
@@ -153,11 +153,11 @@ export function InviteModal({ listId, isOpen, onClose }: InviteModalProps) {
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">{error}</div>
           )}
 
           {success && (
-            <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">{success}</div>
+            <div className="rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400">{success}</div>
           )}
 
           <button
@@ -172,18 +172,18 @@ export function InviteModal({ listId, isOpen, onClose }: InviteModalProps) {
         {/* Pending invites */}
         {invites.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Pending Invites</h3>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pending Invites</h3>
             <div className="space-y-2">
               {invites
                 .filter((i) => i.status === 'pending')
                 .map((invite) => (
                   <div
                     key={invite.id}
-                    className="flex items-center justify-between rounded-md border bg-gray-50 px-3 py-2"
+                    className="flex items-center justify-between rounded-md border bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
                   >
                     <div>
-                      <span className="text-sm text-gray-900">{invite.email}</span>
-                      <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 capitalize">
+                      <span className="text-sm text-gray-900 dark:text-white">{invite.email}</span>
+                      <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 capitalize dark:bg-gray-700 dark:text-gray-300">
                         {invite.role}
                       </span>
                     </div>

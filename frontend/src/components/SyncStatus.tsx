@@ -15,10 +15,10 @@ export function SyncStatus() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 mb-4">
       {/* Offline indicator */}
       {!isConnected && (
-        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-300">
           <svg
             className="h-4 w-4 flex-shrink-0"
             fill="none"
@@ -38,7 +38,7 @@ export function SyncStatus() {
 
       {/* Pending operations indicator */}
       {hasPending && (
-        <div className="flex items-center justify-between rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800">
+        <div className="flex items-center justify-between rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300">
           <div className="flex items-center gap-2">
             <svg
               className="h-4 w-4 animate-spin"
@@ -61,7 +61,7 @@ export function SyncStatus() {
           {!isConnected && (
             <button
               onClick={retryPendingOperations}
-              className="rounded bg-blue-100 px-2 py-1 text-xs font-medium hover:bg-blue-200"
+              className="rounded bg-blue-100 px-2 py-1 text-xs font-medium hover:bg-blue-200 dark:bg-blue-800 dark:hover:bg-blue-700"
             >
               Retry
             </button>
@@ -75,7 +75,7 @@ export function SyncStatus() {
           {conflicts.map((conflict) => (
             <div
               key={conflict.todoId}
-              className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800"
+              className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
@@ -94,7 +94,7 @@ export function SyncStatus() {
                   </svg>
                   <div>
                     <p className="font-medium">Sync conflict detected</p>
-                    <p className="text-xs text-red-600 mt-1">
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
                       Someone else edited this item. Your version: v{conflict.clientVersion}, Server
                       version: v{conflict.serverVersion}
                     </p>
@@ -102,7 +102,7 @@ export function SyncStatus() {
                 </div>
                 <button
                   onClick={() => dismissConflict(conflict.todoId)}
-                  className="rounded p-1 hover:bg-red-100"
+                  className="rounded p-1 hover:bg-red-100 dark:hover:bg-red-800"
                   title="Dismiss"
                 >
                   <svg

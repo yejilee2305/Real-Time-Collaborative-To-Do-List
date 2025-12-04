@@ -30,7 +30,7 @@ export function OnlineUsers() {
           return (
             <div
               key={user.userId}
-              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs font-medium text-white shadow-sm transition-transform hover:scale-110 hover:z-10"
+              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white dark:border-gray-900 text-xs font-medium text-white shadow-sm transition-transform hover:scale-110 hover:z-10"
               style={{
                 backgroundColor: user.color,
                 zIndex: 4 - index,
@@ -43,7 +43,7 @@ export function OnlineUsers() {
         })}
         {totalOnline > 4 && (
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-200 text-xs font-medium text-gray-600"
+            className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white dark:border-gray-900 bg-gray-200 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300"
             style={{ zIndex: 0 }}
             title={sortedUsers
               .slice(4)
@@ -54,7 +54,7 @@ export function OnlineUsers() {
           </div>
         )}
       </div>
-      <span className="text-sm text-gray-600">
+      <span className="text-sm text-gray-600 dark:text-gray-400">
         {totalOnline === 1 ? 'Just you' : `${totalOnline} online`}
       </span>
     </div>

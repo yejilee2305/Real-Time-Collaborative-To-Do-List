@@ -44,11 +44,11 @@ export function ListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <ConnectionStatus />
             <ShareLink listId={listId} />
           </div>
@@ -57,13 +57,13 @@ export function ListPage() {
 
         <SyncStatus />
 
-        <div className="rounded-lg bg-white p-6 shadow-sm">
+        <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-900 sm:p-6">
           <AddTodoForm />
 
           <TypingIndicator />
 
           {error && (
-            <div className="mb-4 rounded-md bg-red-50 p-4 text-red-700">
+            <div className="mb-4 rounded-md bg-red-50 p-4 text-red-700 dark:bg-red-900/30 dark:text-red-400">
               {error}
             </div>
           )}

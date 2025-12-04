@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import { validate } from '../middleware/validate';
+import { createLimiter } from '../middleware/rateLimiter';
 import * as todosController from '../controllers/todos';
 
 const router = Router();
@@ -60,7 +61,7 @@ router.get(
   todosController.getTodoById
 );
 
-router.post('/', createTodoValidation, validate, todosController.createTodo);
+router.post('/', createLimiter, createTodoValidation, validate, todosController.createTodo);
 
 router.patch(
   '/:id',

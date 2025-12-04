@@ -4,15 +4,17 @@ import { useTodoStore } from '../stores/todoStore';
 
 interface TodoItemProps {
   todo: TodoItemType;
+  dragHandleProps?: Record<string, unknown>;
+  isDragging?: boolean;
 }
 
 const priorityColors = {
-  low: 'bg-gray-100 text-gray-600',
-  medium: 'bg-yellow-100 text-yellow-700',
-  high: 'bg-red-100 text-red-700',
+  low: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400',
+  high: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400',
 };
 
-export function TodoItem({ todo }: TodoItemProps) {
+export function TodoItem({ todo, dragHandleProps, isDragging }: TodoItemProps) {
   const { toggleTodo, updateTodo, deleteTodo, sendSelecting, getSelectingUsers } =
     useTodoStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -64,10 +66,12 @@ export function TodoItem({ todo }: TodoItemProps) {
 
   return (
     <li
-      className={`group relative flex items-center gap-3 rounded-lg border-2 bg-white p-3 transition-all ${
-        hasOtherSelections
+      className={`group relative flex items-center gap-2 sm:gap-3 rounded-lg border-2 bg-white dark:bg-gray-800 p-2 sm:p-3 transition-all ${
+        isDragging
+          ? 'shadow-lg ring-2 ring-blue-500'
+          : hasOtherSelections
           ? 'shadow-md'
-          : 'border-gray-200 hover:shadow-sm'
+          : 'border-gray-200 dark:border-gray-700 hover:shadow-sm'
       }`}
       style={{
         borderColor: selectionBorderColor || undefined,
@@ -77,13 +81,26 @@ export function TodoItem({ todo }: TodoItemProps) {
       onMouseEnter={() => setIsFocused(true)}
       onMouseLeave={() => !isEditing && setIsFocused(false)}
     >
+      {/* Drag handle */}
+      {dragHandleProps && (
+        <button
+          {...dragHandleProps}
+          className="flex-shrink-0 cursor-grab touch-none rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 active:cursor-grabbing"
+          aria-label="Drag to reorder"
+        >
+          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
+          </svg>
+        </button>
+      )}
+
       {/* Selection indicator avatars */}
       {hasOtherSelections && (
         <div className="absolute -top-2 -right-2 flex -space-x-1">
           {selectingUsers.slice(0, 3).map((user) => (
             <div
               key={user.userId}
-              className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] font-medium text-white shadow-sm"
+              className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white dark:border-gray-800 text-[10px] font-medium text-white shadow-sm"
               style={{ backgroundColor: user.color }}
               title={`${user.name} is viewing`}
             >
@@ -91,7 +108,7 @@ export function TodoItem({ todo }: TodoItemProps) {
             </div>
           ))}
           {selectingUsers.length > 3 && (
-            <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-gray-400 text-[10px] font-medium text-white shadow-sm">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white dark:border-gray-800 bg-gray-400 text-[10px] font-medium text-white shadow-sm">
               +{selectingUsers.length - 3}
             </div>
           )}
@@ -103,7 +120,7 @@ export function TodoItem({ todo }: TodoItemProps) {
         className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors ${
           todo.completed
             ? 'border-green-500 bg-green-500 text-white'
-            : 'border-gray-300 hover:border-blue-500'
+            : 'border-gray-300 dark:border-gray-600 hover:border-blue-500'
         }`}
       >
         {todo.completed && (
@@ -125,14 +142,16 @@ export function TodoItem({ todo }: TodoItemProps) {
             onChange={(e) => setEditTitle(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
-            className="w-full rounded border border-blue-500 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded border border-blue-500 px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
           />
         ) : (
           <p
             onClick={() => setIsEditing(true)}
             className={`cursor-pointer truncate text-sm ${
-              todo.completed ? 'text-gray-400 line-through' : 'text-gray-700'
+              todo.completed
+                ? 'text-gray-400 dark:text-gray-500 line-through'
+                : 'text-gray-700 dark:text-gray-200'
             }`}
           >
             {todo.title}
@@ -141,14 +160,14 @@ export function TodoItem({ todo }: TodoItemProps) {
       </div>
 
       <span
-        className={`flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${priorityColors[todo.priority]}`}
+        className={`hidden sm:inline-block flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${priorityColors[todo.priority]}`}
       >
         {todo.priority}
       </span>
 
       <button
         onClick={handleDelete}
-        className="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+        className="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 group-hover:opacity-100 sm:group-hover:opacity-100"
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path

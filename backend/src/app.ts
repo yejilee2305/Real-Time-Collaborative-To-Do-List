@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { clerkMiddleware } from '@clerk/express';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+import { generalLimiter } from './middleware/rateLimiter';
 import routes from './routes';
 
 const app = express();
@@ -31,6 +32,9 @@ if (process.env.NODE_ENV !== 'test') {
 // Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Rate limiting
+app.use('/api', generalLimiter);
 
 // Health check
 app.get('/health', (_req, res) => {

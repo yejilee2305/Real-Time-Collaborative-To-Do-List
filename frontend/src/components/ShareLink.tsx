@@ -22,7 +22,7 @@ export function ShareLink({ listId }: ShareLinkProps) {
   return (
     <button
       onClick={copyToClipboard}
-      className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-200"
+      className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
       title="Copy share link"
     >
       {copied ? (
@@ -40,7 +40,7 @@ export function ShareLink({ listId }: ShareLinkProps) {
               d="M5 13l4 4L19 7"
             />
           </svg>
-          <span className="text-green-600">Copied!</span>
+          <span className="text-green-600 dark:text-green-400">Copied!</span>
         </>
       ) : (
         <>

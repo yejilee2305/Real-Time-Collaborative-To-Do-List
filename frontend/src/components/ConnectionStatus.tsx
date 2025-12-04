@@ -10,7 +10,7 @@ export function ConnectionStatus() {
           isConnected ? 'bg-green-500' : 'bg-red-500'
         }`}
       />
-      <span className="text-sm text-gray-600">
+      <span className="text-sm text-gray-600 dark:text-gray-400">
         {isConnected ? 'Connected' : 'Disconnected'}
       </span>
     </div>

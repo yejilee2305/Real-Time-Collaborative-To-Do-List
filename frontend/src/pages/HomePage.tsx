@@ -46,7 +46,7 @@ export function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Header />
       <main className="mx-auto max-w-2xl px-4 py-12">
         {/* Auth section */}
@@ -61,7 +61,7 @@ export function HomePage() {
               </Link>
               <Link
                 to="/sign-up"
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
               >
                 Sign Up
               </Link>
@@ -81,10 +81,10 @@ export function HomePage() {
         </div>
 
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Real-time Collaborative Todo Lists
           </h2>
-          <p className="text-gray-600 max-w-md mx-auto">
+          <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
             Create a list and share the link with your team. Everyone can add,
             edit, and check off items in real-time.
           </p>
@@ -92,11 +92,11 @@ export function HomePage() {
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Create New List */}
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-gray-900 dark:border-gray-800">
             <div className="mb-4">
-              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
                 <svg
-                  className="h-6 w-6 text-blue-600"
+                  className="h-6 w-6 text-blue-600 dark:text-blue-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -109,10 +109,10 @@ export function HomePage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Create New List
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Start a fresh todo list and invite your team
               </p>
             </div>
@@ -125,11 +125,11 @@ export function HomePage() {
           </div>
 
           {/* Join Existing List */}
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-gray-900 dark:border-gray-800">
             <div className="mb-4">
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center mb-4">
                 <svg
-                  className="h-6 w-6 text-green-600"
+                  className="h-6 w-6 text-green-600 dark:text-green-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -142,10 +142,10 @@ export function HomePage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Join Existing List
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Paste a link or list ID to join
               </p>
             </div>
@@ -155,12 +155,12 @@ export function HomePage() {
                 value={joinListId}
                 onChange={(e) => setJoinListId(e.target.value)}
                 placeholder="Paste link or list ID..."
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
               />
               <button
                 type="submit"
                 disabled={!joinListId.trim()}
-                className="rounded-lg bg-green-500 px-4 py-2 font-medium text-white transition-colors hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="rounded-lg bg-green-500 px-4 py-2 font-medium text-white transition-colors hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed dark:disabled:bg-gray-700"
               >
                 Join
               </button>
@@ -171,7 +171,7 @@ export function HomePage() {
         {/* Recent Lists */}
         {recentLists.length > 0 && (
           <div className="mt-8">
-            <h3 className="text-sm font-medium text-gray-500 mb-3">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
               Recent Lists
             </h3>
             <div className="space-y-2">
@@ -182,7 +182,7 @@ export function HomePage() {
                     saveRecentList(listId);
                     navigate(`/list/${listId}`);
                   }}
-                  className="w-full flex items-center justify-between rounded-lg bg-white px-4 py-3 text-left shadow-sm border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+                  className="w-full flex items-center justify-between rounded-lg bg-white px-4 py-3 text-left shadow-sm border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group dark:bg-gray-900 dark:border-gray-800 dark:hover:border-blue-800 dark:hover:bg-blue-950"
                 >
                   <div className="flex items-center gap-3">
                     <svg
@@ -198,7 +198,7 @@ export function HomePage() {
                         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                       />
                     </svg>
-                    <span className="font-medium text-gray-700 group-hover:text-blue-700">
+                    <span className="font-medium text-gray-700 group-hover:text-blue-700 dark:text-gray-300 dark:group-hover:text-blue-400">
                       List {listId.slice(0, 8)}...
                     </span>
                   </div>

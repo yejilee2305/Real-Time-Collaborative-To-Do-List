@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { validate } from '../middleware/validate';
 import { protectedRoute } from '../middleware/auth';
+import { createLimiter, inviteLimiter } from '../middleware/rateLimiter';
 import * as listsController from '../controllers/lists';
 
 const router = Router();
@@ -59,7 +60,7 @@ router.get(
 );
 
 // Create list
-router.post('/', createListValidation, validate, listsController.createList);
+router.post('/', createLimiter, createListValidation, validate, listsController.createList);
 
 // Update list
 router.patch(
@@ -114,7 +115,7 @@ router.get(
   listsController.getListInvites
 );
 
-router.post('/:id/invites', inviteValidation, validate, listsController.createInvite);
+router.post('/:id/invites', inviteLimiter, inviteValidation, validate, listsController.createInvite);
 
 router.delete(
   '/:id/invites/:inviteId',
